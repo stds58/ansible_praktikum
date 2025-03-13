@@ -1,0 +1,14 @@
+---
+#wsl ansible-playbook playbook.yml -i inventory/hosts.ini
+#wsl ansible-playbook -i inventory playbook.yml
+- name: Configure Nginx server
+  hosts: nginx_servers
+  roles:
+    - users
+    - http
+
+- name: Configure PHP-FPM server
+  hosts: php_servers
+  roles:
+    - users
+    - php

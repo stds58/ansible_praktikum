@@ -1,0 +1,18 @@
+---
+- name: Install PHP-FPM
+  apt:
+    name: php-fpm
+    state: present
+    update_cache: yes
+
+- name: Ensure PHP-FPM listens on port 9000
+  lineinfile:
+    path: /etc/php/{{ php_version }}/fpm/pool.d/www.conf
+    regexp: '^listen ='
+    line: 'listen = {{ php_fpm_listen }}:9000'
+
+- name: Restart PHP-FPM service
+  service:
+    name: php{{ php_version }}-fpm
+    state: restarted
+    enabled: yes

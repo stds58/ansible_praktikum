@@ -1,0 +1,3 @@
+---
+wsl_keys_path: "/mnt/c/pitonprojekt/ansible_praktikum/keys/"  # Путь для WSL
+linux_keys_path: "keys/"  # Относительный путь для Linux

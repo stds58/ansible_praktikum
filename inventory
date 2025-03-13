@@ -1,0 +1,10 @@
+# inventory
+[nginx_servers]
+nginx1 ansible_host=37.252.23.199
+
+[php_servers]
+php1 ansible_host=193.188.23.15
+
+[all:vars]
+ansible_user=root
+ansible_ssh_private_key_file=~/.ssh/timeweb_cloud_20250226

@@ -1,0 +1,2 @@
+---
+php_fpm_host: "{{ hostvars['php1']['ansible_host'] }}"

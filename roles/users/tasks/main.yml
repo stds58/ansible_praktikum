@@ -1,0 +1,86 @@
+---
+# Определение пути к папке keys/
+- name: Determine the path to the keys directory
+  set_fact:
+    keys_path: >-
+      {{
+        wsl_keys_path
+        if ansible_system == 'Linux' and lookup('file', '/proc/version') is search('microsoft')
+        else linux_keys_path
+      }}
+
+- name: Debug resolved keys path
+  debug:
+    msg: "Resolved keys path: {{ keys_path }}"
+
+- name: Check if keys directory exists
+  stat:
+    path: "{{ keys_path }}"
+  delegate_to: localhost
+  register: keys_directory
+
+- name: Fail if keys directory does not exist
+  fail:
+    msg: "The keys directory '{{ keys_path }}' does not exist or is inaccessible."
+  delegate_to: localhost
+  when: not keys_directory.stat.exists
+
+- name: Find all SSH public key files in the keys/ directory
+  find:
+    paths: "{{ keys_path }}"
+    patterns: "*.pub"
+  delegate_to: localhost
+  register: ssh_keys
+
+- name: Debug found SSH key files
+  debug:
+    msg: "Found SSH key file: {{ item.path }}"
+  loop: "{{ ssh_keys.files }}"
+  delegate_to: localhost
+  when: ssh_keys.files | length > 0
+
+- name: Extract username from the key filename
+  set_fact:
+    new_user: "{{ item.path | basename | regex_replace('\\.pub$', '') }}"
+  loop: "{{ ssh_keys.files }}"
+
+- name: Debug extracted usernames
+  debug:
+    msg: "Extracted username: {{ new_user }}"
+  loop: "{{ ssh_keys.files }}"
+
+- name: Ensure users exist
+  user:
+    name: "{{ item.path | basename | regex_replace('\\.pub$', '') }}"
+    state: present
+    shell: /bin/bash
+    create_home: yes
+  become: yes
+  loop: "{{ ssh_keys.files }}"
+
+- name: Ensure .ssh directory exists with correct permissions
+  file:
+    path: "/home/{{ item.path | basename | regex_replace('\\.pub$', '') }}/.ssh"
+    state: directory
+    owner: "{{ item.path | basename | regex_replace('\\.pub$', '') }}"
+    group: "{{ item.path | basename | regex_replace('\\.pub$', '') }}"
+    mode: '0700'
+  become: yes
+  loop: "{{ ssh_keys.files }}"
+
+- name: Add SSH public key to the user
+  authorized_key:
+    user: "{{ item.path | basename | regex_replace('\\.pub$', '') }}"
+    state: present
+    key: "{{ lookup('file', item.path) }}"
+  become: yes
+  loop: "{{ ssh_keys.files }}"
+
+- name: Ensure user has sudo privileges
+  lineinfile:
+    path: /etc/sudoers.d/{{ item.path | basename | regex_replace('\\.pub$', '') }}
+    line: "{{ item.path | basename | regex_replace('\\.pub$', '') }} ALL=(ALL) NOPASSWD:ALL"
+    create: yes
+    validate: 'visudo -cf %s'
+  become: yes
+  loop: "{{ ssh_keys.files }}"
